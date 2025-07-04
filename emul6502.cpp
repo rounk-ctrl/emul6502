@@ -6,7 +6,7 @@
 // NOTE: this is implemented for the WDC W65C02S
 // has extra instructions bruh
 
-#define ENCODE_DATA(lo, hi) (lo + (hi << 8))
+#define ENCODE_DATA(lo, hi) ((hi << 8) | lo)
 #define GET_HIGH(pc) (pc >> 8) & 0xff
 #define GET_LOW(pc) (pc) & 0xff
 #define TEST_STATUS_FLAG(flag) _cpu.P & flag ? true : false
@@ -68,7 +68,61 @@ uint8_t pop()
 	return ram[0x100 + _cpu.S];
 }
 
-// instructions
+/// =============
+//  instructions
+/// =============
+
+// helper address instructions
+
+// a
+uint16_t exec_abs()
+{
+	uint8_t lo = ram[++_cpu.PC];
+	uint8_t hi = ram[++_cpu.PC];
+	return ENCODE_DATA(lo, hi);
+}
+
+// a,x
+uint16_t exec_abs_x()
+{
+	return exec_abs() + _cpu.X;
+}
+
+// (a)
+uint16_t exec_indirect()
+{
+	uint8_t lo = ram[++_cpu.PC];
+	uint8_t hi = ram[++_cpu.PC];
+	uint16_t ptr = ENCODE_DATA(lo, hi);
+
+	uint8_t target_lo = ram[ptr];
+	uint8_t target_hi = ram[++ptr];
+	return ENCODE_DATA(target_lo, target_hi);
+}
+
+// zp
+uint8_t exec_zp()
+{
+	return (ram[++_cpu.PC]) & 0xff;
+}
+
+// zp,x
+uint8_t exec_zp_x()
+{
+	return (ram[++_cpu.PC] + _cpu.X) & 0xff;
+}
+
+// zp,y
+uint8_t exec_zp_y()
+{
+	return (ram[++_cpu.PC] + _cpu.Y) & 0xff;
+}
+
+// immediate
+uint8_t exec_immediate()
+{
+	return ++_cpu.PC;
+}
 
 // opcode 0x00- software interrupt
 // 7 cycles
@@ -229,41 +283,32 @@ void CLV()
 // the data represents an absolute location
 //  | 0  | 1    | 2    |
 //  | OP | low  | high |
-void JMP_abs()
+void JMP(int opcode)
 {
-	uint8_t lo = ram[++_cpu.PC];
-	uint8_t hi = ram[++_cpu.PC];
-	_cpu.PC = ENCODE_DATA(lo, hi);
-}
-
-// opcode 0x6C- jump to new location in ram
-// 5 cycles
-// the data represents an absolute indirect location (in ram)
-//  | 0  | 1    | 2    |
-//  | OP | low  | high |
-void JMP_indirect()
-{
-	uint8_t lo = ram[++_cpu.PC];
-	uint8_t hi = ram[++_cpu.PC];
-	uint16_t ptr = ENCODE_DATA(lo, hi);
-
-	uint8_t target_lo = ram[ptr];
-	uint8_t target_hi = ram[++ptr];
-	_cpu.PC = ENCODE_DATA(target_lo, target_hi);
+	if (opcode == 0x4C)
+	{
+		// 3 cycles
+		_cpu.PC = exec_abs();
+	}
+	else if (opcode == 0x6C)
+	{
+		// 5 cycles
+		_cpu.PC = exec_indirect();
+	}
 }
 
 // opcode 0x20- jump to new location saving return address
 // 6 cycles
 void JSR()
 {
-	uint8_t lo = ram[++_cpu.PC];
-	uint8_t hi = ram[++_cpu.PC];
+	uint16_t data = exec_abs();
 
+	// QUIRK!
 	_cpu.PC--;
 	push(GET_HIGH(_cpu.PC));
 	push(GET_LOW(_cpu.PC));
 
-	_cpu.PC = ENCODE_DATA(lo, hi);
+	_cpu.PC = data;
 }
 
 // opcode 0x40- return from interrupt
@@ -284,11 +329,26 @@ void RTS()
 	_cpu.PC = ENCODE_DATA(pop(), pop()) + 1;
 }
 
-// opcode 0xE0 and 0xE4- compare memory and index X
-// 2 cycles
-void CPX_zp_immediate()
+// compare memory and index X
+void CPX(int opcode)
 {
-	uint8_t operand = ram[++_cpu.PC];
+	uint8_t operand = 0;
+	if (opcode == 0xE0)
+	{
+		// 2 cycles
+		operand = exec_immediate();
+	}
+	else if (opcode == 0xE4)
+	{
+		// 3 cycles
+		operand = ram[exec_zp()];
+	}
+	else if (opcode == 0xEC)
+	{
+		// 4 cycles
+		operand = ram[exec_abs()];
+	}
+
 	uint8_t tmp = _cpu.X - operand;
 
 	SET_FLAG(_cpu.X >= operand, CARRY);
@@ -296,38 +356,27 @@ void CPX_zp_immediate()
 	SET_FLAG(tmp & NEGATIVE, NEGATIVE);
 }
 
-void CPX_abs()
+
+// compare memory and index Y
+void CPY(int opcode)
 {
-	uint8_t lo = ram[++_cpu.PC];
-	uint8_t hi = ram[++_cpu.PC];
+	uint8_t operand = 0;
+	if (opcode == 0xC0)
+	{
+		// 2 cycles
+		operand = exec_immediate();
+	}
+	else if (opcode == 0xC4)
+	{
+		// 3 cycles
+		operand = ram[exec_zp()];
+	}
+	else if (opcode == 0xCC)
+	{
+		// 4 cycles
+		operand = ram[exec_abs()];
+	}
 
-	uint8_t operand = ram[ENCODE_DATA(lo, hi)];
-	uint8_t tmp = _cpu.X - operand;
-
-	SET_FLAG(_cpu.X >= operand, CARRY);
-	SET_FLAG(tmp == 0, ZERO);
-	SET_FLAG(tmp & NEGATIVE, NEGATIVE);
-}
-
-
-// opcode 0xC0 and 0xC4- compare memory and index Y
-// 2 cycles
-void CPY_zp_immediate()
-{
-	uint8_t operand = ram[++_cpu.PC];
-	uint8_t tmp = _cpu.Y - operand;
-
-	SET_FLAG(_cpu.Y >= operand, CARRY);
-	SET_FLAG(tmp == 0, ZERO);
-	SET_FLAG(tmp & NEGATIVE, NEGATIVE);
-}
-
-void CPY_abs()
-{
-	uint8_t lo = ram[++_cpu.PC];
-	uint8_t hi = ram[++_cpu.PC];
-
-	uint8_t operand = ram[ENCODE_DATA(lo, hi)];
 	uint8_t tmp = _cpu.Y - operand;
 
 	SET_FLAG(_cpu.Y >= operand, CARRY);
@@ -477,6 +526,31 @@ void TXS()
 void TSX()
 {
 	_cpu.X = _cpu.S;
+}
+
+void INC(int opcode)
+{
+	uint8_t data = 0;
+	if (opcode == 0xE6)
+	{
+		data = ram[exec_zp()];
+	}
+	else if (opcode == 0xF6)
+	{
+		data = ram[exec_zp_x()];
+	}
+	else if (opcode == 0xEE)
+	{
+		data = ram[exec_abs()];
+	}
+	else if (opcode == 0xFE)
+	{
+		data = ram[exec_abs_x()];
+	}
+	data = (data + 1) & 0xFF;
+
+	SET_FLAG(data == 0, ZERO);
+	SET_FLAG(data & NEGATIVE, NEGATIVE);
 }
 
 int main()
