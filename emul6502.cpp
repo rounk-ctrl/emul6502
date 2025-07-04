@@ -335,6 +335,149 @@ void CPY_abs()
 	SET_FLAG(tmp & NEGATIVE, NEGATIVE);
 }
 
+// opcode 0x38- set carry flag
+// 2 cycles
+void SEC()
+{
+	SET_FLAG(true, CARRY);
+}
+
+// opcode 0xF8- set decimal flag
+// 2 cycles
+void SED()
+{
+	SET_FLAG(true, DECIMAL_MODE);
+}
+
+// opcode 0x78- set interrupt disable status
+// 2 cycles
+void SEI()
+{
+	SET_FLAG(true, INTERRUPT_DISABLE);
+}
+
+// opcode 0xEA- no operation
+// 2 cycles
+void NOP()
+{
+	return;
+}
+
+// opcode 0xCA- decrement index X by one
+// 2 cycles
+void DEX()
+{
+	_cpu.X--;
+	SET_FLAG(_cpu.X == 0, ZERO);
+	SET_FLAG(_cpu.X & NEGATIVE, NEGATIVE);
+}
+
+// opcode 0x88- decrement index Y by one
+// 2 cycles
+void DEY()
+{
+	_cpu.Y--;
+	SET_FLAG(_cpu.Y == 0, ZERO);
+	SET_FLAG(_cpu.Y & NEGATIVE, NEGATIVE);
+}
+
+// opcode 0x48- push accumulator to stack
+// 3 cycles
+void PHA()
+{
+	push(_cpu.A);
+}
+
+// opcode 0x8- push processor status to stack
+// 3 cycles
+void PHP()
+{
+	push(_cpu.P);
+}
+
+// opcode 0x68- pull accumulator from stack
+// 4 cycles
+void PLA()
+{
+	_cpu.A = pop();
+	SET_FLAG(_cpu.A & NEGATIVE, NEGATIVE);
+	SET_FLAG(_cpu.A == 0, ZERO);
+}
+
+// opcode 0x28- pull processor status from stack
+// 4 cycles
+void PLP()
+{
+	_cpu.P = pop();
+}
+
+// opcode 0xAA- transfer accumulator to X
+// 2 cycles
+void TAX()
+{
+	_cpu.X = _cpu.A;
+	SET_FLAG(_cpu.X & NEGATIVE, NEGATIVE);
+	SET_FLAG(_cpu.X == 0, ZERO);
+}
+
+// opcode 0xA8- transfer accumulator to Y
+// 2 cycles
+void TAY()
+{
+	_cpu.Y = _cpu.A;
+	SET_FLAG(_cpu.Y & NEGATIVE, NEGATIVE);
+	SET_FLAG(_cpu.Y == 0, ZERO);
+}
+
+// opcode 0xC8- increment Y by one
+// 2 cycles
+void INY()
+{
+	_cpu.Y++;
+	SET_FLAG(_cpu.Y & NEGATIVE, NEGATIVE);
+	SET_FLAG(_cpu.Y == 0, ZERO);
+}
+
+// opcode 0xE8- increment X by one
+// 2 cycles
+void INX()
+{
+	_cpu.X++;
+	SET_FLAG(_cpu.X & NEGATIVE, NEGATIVE);
+	SET_FLAG(_cpu.X == 0, ZERO);
+}
+
+// opcode 0x98- transfer Y to accumulator
+// 2 cycles
+void TYA()
+{
+	_cpu.A = _cpu.Y;
+	SET_FLAG(_cpu.A & NEGATIVE, NEGATIVE);
+	SET_FLAG(_cpu.A == 0, ZERO);
+}
+
+// opcode 0x8A- transfer X to accumulator
+// 2 cycles
+void TXA()
+{
+	_cpu.A = _cpu.X;
+	SET_FLAG(_cpu.A & NEGATIVE, NEGATIVE);
+	SET_FLAG(_cpu.A == 0, ZERO);
+}
+
+// opcode 0x9A- transfer X to stack register;
+// 2 cycles
+void TXS()
+{
+	_cpu.S = _cpu.X;
+}
+
+// opcode 0xBA- transfer stack pointer to X
+// 2 cycles
+void TSX()
+{
+	_cpu.X = _cpu.S;
+}
 
 int main()
 {
