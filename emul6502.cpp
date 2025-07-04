@@ -88,6 +88,12 @@ uint16_t exec_abs_x()
 	return exec_abs() + _cpu.X;
 }
 
+// a,y
+uint16_t exec_abs_y()
+{
+	return exec_abs() + _cpu.Y;
+}
+
 // (a)
 uint16_t exec_indirect()
 {
@@ -547,10 +553,244 @@ void INC(int opcode)
 	{
 		data = ram[exec_abs_x()];
 	}
+
 	data = (data + 1) & 0xFF;
 
 	SET_FLAG(data == 0, ZERO);
 	SET_FLAG(data & NEGATIVE, NEGATIVE);
+}
+
+void ORA(int opcode)
+{
+	uint8_t data = 0;
+	if (opcode == 0x9)
+	{
+		data = exec_immediate();
+	}
+	else if (opcode == 0x5)
+	{
+		data = ram[exec_zp()];
+	}
+	else if (opcode == 0x15)
+	{
+		data = ram[exec_zp_x()];
+	}
+	else if (opcode == 0xD)
+	{
+		data = ram[exec_abs()];
+	}
+	else if (opcode == 0x1D)
+	{
+		data = ram[exec_abs_x()];
+	}
+	else if (opcode == 0x19)
+	{
+		data = ram[exec_abs_y()];
+	}
+	static_assert(false, "2 opcodes left");
+
+	_cpu.A = _cpu.A | data;
+	SET_FLAG(_cpu.A & NEGATIVE, NEGATIVE);
+	SET_FLAG(_cpu.A == 0, ZERO);
+}
+
+void LDA(int opcode)
+{
+	uint8_t data = 0;
+	if (opcode == 0xA9)
+	{
+		data = exec_immediate();
+	}
+	else if (opcode == 0xA5)
+	{
+		data = ram[exec_zp()];
+	}
+	else if (opcode == 0xB5)
+	{
+		data = ram[exec_zp_x()];
+	}
+	else if (opcode == 0xAD)
+	{
+		data = ram[exec_abs()];
+	}
+	else if (opcode == 0xBD)
+	{
+		data = ram[exec_abs_x()];
+	}
+	else if (opcode == 0xB9)
+	{
+		data = ram[exec_abs_y()];
+	}
+	static_assert(false, "2 opcodes left");
+
+	_cpu.A = data;
+	SET_FLAG(_cpu.A & NEGATIVE, NEGATIVE);
+	SET_FLAG(_cpu.A == 0, ZERO);
+}
+
+
+void LDX(int opcode)
+{
+	uint8_t data = 0;
+	if (opcode == 0xA2)
+	{
+		data = exec_immediate();
+	}
+	else if (opcode == 0xA6)
+	{
+		data = ram[exec_zp()];
+	}
+	else if (opcode == 0xB6)
+	{
+		data = ram[exec_zp_y()];
+	}
+	else if (opcode == 0xAE)
+	{
+		data = ram[exec_abs()];
+	}
+	else if (opcode == 0xBE)
+	{
+		data = ram[exec_abs_y()];
+	}
+
+	_cpu.X = data;
+	SET_FLAG(_cpu.X & NEGATIVE, NEGATIVE);
+	SET_FLAG(_cpu.X == 0, ZERO);
+}
+
+
+void LDY(int opcode)
+{
+	uint8_t data = 0;
+	if (opcode == 0xA0)
+	{
+		data = exec_immediate();
+	}
+	else if (opcode == 0xA4)
+	{
+		data = ram[exec_zp()];
+	}
+	else if (opcode == 0xB4)
+	{
+		data = ram[exec_zp_x()];
+	}
+	else if (opcode == 0xAC)
+	{
+		data = ram[exec_abs()];
+	}
+	else if (opcode == 0xBC)
+	{
+		data = ram[exec_abs_x()];
+	}
+
+	_cpu.Y = data;
+	SET_FLAG(_cpu.Y & NEGATIVE, NEGATIVE);
+	SET_FLAG(_cpu.Y == 0, ZERO);
+}
+
+
+void ADC(int opcode)
+{
+	uint8_t data = 0;
+	if (opcode == 0x69)
+	{
+		data = exec_immediate();
+	}
+	else if (opcode == 0x65)
+	{
+		data = ram[exec_zp()];
+	}
+	else if (opcode == 0x75)
+	{
+		data = ram[exec_zp_x()];
+	}
+	else if (opcode == 0x6D)
+	{
+		data = ram[exec_abs()];
+	}
+	else if (opcode == 0x7D)
+	{
+		data = ram[exec_abs_x()];
+	}
+	else if (opcode == 0x79)
+	{
+		data = ram[exec_abs_y()];
+	}
+	static_assert(false, "2 opcodes left");
+
+	uint8_t result = _cpu.A + data + (TEST_STATUS_FLAG(CARRY) ? 1 : 0);
+	_cpu.A = result & 0xff;
+
+	SET_FLAG(_cpu.A & NEGATIVE, NEGATIVE);
+	SET_FLAG(_cpu.A == 0, ZERO);
+	SET_FLAG(_cpu.A > 0xff, CARRY);
+	// overflow ??
+}
+
+void STA(int opcode)
+{
+	uint8_t* data = 0;
+	if (opcode == 0x85)
+	{
+		data = &ram[exec_zp()];
+	}
+	else if (opcode == 0x95)
+	{
+		data = &ram[exec_zp_x()];
+	}
+	else if (opcode == 0x8D)
+	{
+		data = &ram[exec_abs()];
+	}
+	else if (opcode == 0x9D)
+	{
+		data = &ram[exec_abs_x()];
+	}
+	else if (opcode == 0x99)
+	{
+		data = &ram[exec_abs_y()];
+	}
+
+	*data = _cpu.A;
+}
+
+void STX(int opcode)
+{
+	uint8_t* data = 0;
+	if (opcode == 0x86)
+	{
+		data = &ram[exec_zp()];
+	}
+	else if (opcode == 0x96)
+	{
+		data = &ram[exec_zp_y()];
+	}
+	else if (opcode == 0x8E)
+	{
+		data = &ram[exec_abs()];
+	}
+
+	*data = _cpu.X;
+}
+
+
+void STY(int opcode)
+{
+	uint8_t* data = 0;
+	if (opcode == 0x84)
+	{
+		data = &ram[exec_zp()];
+	}
+	else if (opcode == 0x94)
+	{
+		data = &ram[exec_zp_x()];
+	}
+	else if (opcode == 0x8C)
+	{
+		data = &ram[exec_abs()];
+	}
+
+	*data = _cpu.Y;
 }
 
 int main()
