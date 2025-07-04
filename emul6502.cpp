@@ -9,7 +9,8 @@
 #define ENCODE_DATA(lo, hi) (lo + (hi << 8))
 #define GET_HIGH(pc) (pc >> 8) & 0xff
 #define GET_LOW(pc) (pc) & 0xff
-#define TEST_STATUS_FLAG(flag) _cpu.S & flag ? true : false
+#define TEST_STATUS_FLAG(flag) _cpu.P & flag ? true : false
+#define SET_FLAG(x, flag) (x ? (_cpu.P |= flag) : (_cpu.P &= (~flag)) )
 
 static const uint16_t irqVectorH = 0xFFFF;
 static const uint16_t irqVectorL = 0xFFFE;
@@ -83,8 +84,7 @@ void BRK()
 	push(GET_LOW(_cpu.PC));
 
 	// set BREAK
-	_cpu.P |= BREAK;
-	push(_cpu.P);
+	push(_cpu.P | BREAK);
 
 	// set INTERRUPT
 	_cpu.P |= INTERRUPT_DISABLE;
@@ -236,8 +236,8 @@ void JMP_abs()
 	_cpu.PC = ENCODE_DATA(lo, hi);
 }
 
-// opcode 0x6C- jump to new location
-// 3 cycles
+// opcode 0x6C- jump to new location in ram
+// 5 cycles
 // the data represents an absolute indirect location (in ram)
 //  | 0  | 1    | 2    |
 //  | OP | low  | high |
@@ -251,6 +251,90 @@ void JMP_indirect()
 	uint8_t target_hi = ram[++ptr];
 	_cpu.PC = ENCODE_DATA(target_lo, target_hi);
 }
+
+// opcode 0x20- jump to new location saving return address
+// 6 cycles
+void JSR()
+{
+	uint8_t lo = ram[++_cpu.PC];
+	uint8_t hi = ram[++_cpu.PC];
+
+	_cpu.PC--;
+	push(GET_HIGH(_cpu.PC));
+	push(GET_LOW(_cpu.PC));
+
+	_cpu.PC = ENCODE_DATA(lo, hi);
+}
+
+// opcode 0x40- return from interrupt
+// 6 cycles
+void RTI()
+{
+	// ignore break flag
+	_cpu.P = pop();
+	_cpu.P &= ~BREAK;
+
+	_cpu.PC = ENCODE_DATA(pop(), pop());
+}
+
+// opcode 0x60- return from subroutine
+// 6 cycles
+void RTS()
+{
+	_cpu.PC = ENCODE_DATA(pop(), pop()) + 1;
+}
+
+// opcode 0xE0 and 0xE4- compare memory and index X
+// 2 cycles
+void CPX_zp_immediate()
+{
+	uint8_t operand = ram[++_cpu.PC];
+	uint8_t tmp = _cpu.X - operand;
+
+	SET_FLAG(_cpu.X >= operand, CARRY);
+	SET_FLAG(tmp == 0, ZERO);
+	SET_FLAG(tmp & NEGATIVE, NEGATIVE);
+}
+
+void CPX_abs()
+{
+	uint8_t lo = ram[++_cpu.PC];
+	uint8_t hi = ram[++_cpu.PC];
+
+	uint8_t operand = ram[ENCODE_DATA(lo, hi)];
+	uint8_t tmp = _cpu.X - operand;
+
+	SET_FLAG(_cpu.X >= operand, CARRY);
+	SET_FLAG(tmp == 0, ZERO);
+	SET_FLAG(tmp & NEGATIVE, NEGATIVE);
+}
+
+
+// opcode 0xC0 and 0xC4- compare memory and index Y
+// 2 cycles
+void CPY_zp_immediate()
+{
+	uint8_t operand = ram[++_cpu.PC];
+	uint8_t tmp = _cpu.Y - operand;
+
+	SET_FLAG(_cpu.Y >= operand, CARRY);
+	SET_FLAG(tmp == 0, ZERO);
+	SET_FLAG(tmp & NEGATIVE, NEGATIVE);
+}
+
+void CPY_abs()
+{
+	uint8_t lo = ram[++_cpu.PC];
+	uint8_t hi = ram[++_cpu.PC];
+
+	uint8_t operand = ram[ENCODE_DATA(lo, hi)];
+	uint8_t tmp = _cpu.Y - operand;
+
+	SET_FLAG(_cpu.Y >= operand, CARRY);
+	SET_FLAG(tmp == 0, ZERO);
+	SET_FLAG(tmp & NEGATIVE, NEGATIVE);
+}
+
 
 int main()
 {
