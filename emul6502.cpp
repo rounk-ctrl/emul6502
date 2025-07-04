@@ -107,25 +107,25 @@ uint16_t exec_indirect()
 }
 
 // zp
-uint8_t exec_zp()
+uint16_t exec_zp()
 {
 	return (ram[++_cpu.PC]) & 0xff;
 }
 
 // zp,x
-uint8_t exec_zp_x()
+uint16_t exec_zp_x()
 {
 	return (ram[++_cpu.PC] + _cpu.X) & 0xff;
 }
 
 // zp,y
-uint8_t exec_zp_y()
+uint16_t exec_zp_y()
 {
 	return (ram[++_cpu.PC] + _cpu.Y) & 0xff;
 }
 
 // immediate
-uint8_t exec_immediate()
+uint16_t exec_immediate()
 {
 	return ++_cpu.PC;
 }
@@ -534,6 +534,7 @@ void TSX()
 	_cpu.X = _cpu.S;
 }
 
+// increment memory by one
 void INC(int opcode)
 {
 	uint8_t data = 0;
@@ -560,6 +561,7 @@ void INC(int opcode)
 	SET_FLAG(data & NEGATIVE, NEGATIVE);
 }
 
+// OR memory with accumulator
 void ORA(int opcode)
 {
 	uint8_t data = 0;
@@ -587,13 +589,14 @@ void ORA(int opcode)
 	{
 		data = ram[exec_abs_y()];
 	}
-	static_assert(false, "2 opcodes left");
+	//static_assert(false, "2 opcodes left");
 
 	_cpu.A = _cpu.A | data;
 	SET_FLAG(_cpu.A & NEGATIVE, NEGATIVE);
 	SET_FLAG(_cpu.A == 0, ZERO);
 }
 
+// load accumulator with memory
 void LDA(int opcode)
 {
 	uint8_t data = 0;
@@ -621,14 +624,14 @@ void LDA(int opcode)
 	{
 		data = ram[exec_abs_y()];
 	}
-	static_assert(false, "2 opcodes left");
+	//static_assert(false, "2 opcodes left");
 
 	_cpu.A = data;
 	SET_FLAG(_cpu.A & NEGATIVE, NEGATIVE);
 	SET_FLAG(_cpu.A == 0, ZERO);
 }
 
-
+// load X with memory
 void LDX(int opcode)
 {
 	uint8_t data = 0;
@@ -658,7 +661,7 @@ void LDX(int opcode)
 	SET_FLAG(_cpu.X == 0, ZERO);
 }
 
-
+// load Y with memory
 void LDY(int opcode)
 {
 	uint8_t data = 0;
@@ -688,7 +691,7 @@ void LDY(int opcode)
 	SET_FLAG(_cpu.Y == 0, ZERO);
 }
 
-
+// add memory to accumulator with carry
 void ADC(int opcode)
 {
 	uint8_t data = 0;
@@ -716,7 +719,7 @@ void ADC(int opcode)
 	{
 		data = ram[exec_abs_y()];
 	}
-	static_assert(false, "2 opcodes left");
+	//static_assert(false, "2 opcodes left");
 
 	uint8_t result = _cpu.A + data + (TEST_STATUS_FLAG(CARRY) ? 1 : 0);
 	_cpu.A = result & 0xff;
@@ -727,6 +730,7 @@ void ADC(int opcode)
 	// overflow ??
 }
 
+// store accumulator in memory
 void STA(int opcode)
 {
 	uint8_t* data = 0;
@@ -754,6 +758,7 @@ void STA(int opcode)
 	*data = _cpu.A;
 }
 
+// store X in memory
 void STX(int opcode)
 {
 	uint8_t* data = 0;
@@ -773,7 +778,7 @@ void STX(int opcode)
 	*data = _cpu.X;
 }
 
-
+// store Y in memory
 void STY(int opcode)
 {
 	uint8_t* data = 0;
